@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Vencimiento de Ordenes de Mantenimiento</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+:root{
+  --rojo:   #C10230;
+  --gris:   #F4F4F4;
+  --azul:   #0071C1;
+  --verde:  #00B050;
+  --side-w: 220px;
+  --side-bg:#333F48;
+  --side-grp:#263038;
+  --side-txt:#ccc;
+}
+*{box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,sans-serif;background:var(--gris);margin:0;display:flex;flex-direction:column;min-height:100vh}
+.header-bar{display:flex;align-items:stretch;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.header-logo{width:var(--side-w);background:#fefefe;display:flex;align-items:center;justify-content:center;padding:10px 16px;flex-shrink:0}
+.header-logo img{height:42px;object-fit:contain;width:100%}
+.header-title{flex:1;background:#E4002B;color:#fff;display:flex;align-items:center;justify-content:center;padding:14px 24px}
+.header-title h2{margin:0;font-size:16px;letter-spacing:.5px}
+.app-body{display:flex;flex:1}
+.sidebar{width:var(--side-w);background:var(--side-bg);min-height:calc(100vh - 52px);flex-shrink:0;overflow-y:auto}
+.nav-group{border-bottom:1px solid #3a4a55}
+.nav-group-header{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;cursor:pointer;color:#fff;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;background:var(--side-grp);user-select:none;transition:background .15s}
+.nav-group-header:hover{background:#3a4a55}
+.nav-group-header .arrow{font-size:9px;transition:transform .2s;flex-shrink:0;margin-left:6px}
+.nav-group-header.open .arrow{transform:rotate(90deg)}
+.nav-group-header.open{color:#E4002B}
+.nav-children{display:none}
+.nav-children.open{display:block}
+.tab-btn{display:block;width:100%;padding:10px 16px 10px 22px;cursor:pointer;border:none;border-left:3px solid transparent;background:transparent;color:var(--side-txt);font-size:10.5px;font-weight:600;text-align:left;line-height:1.4;transition:background .15s,color .15s,border-color .15s}
+.tab-btn:hover{background:#3e4d58;color:#fff}
+.tab-btn.active{background:rgba(193,2,48,.18)!important;color:#fff!important;border-left-color:var(--rojo)!important}
+.content-area{flex:1;padding:24px;overflow-x:hidden}
+.card{background:#fff;padding:25px;border-radius:12px;box-shadow:0 5px 20px rgba(0,0,0,.12)}
+.filters-wrap{background:#f9f9f9;padding:7px;border-radius:8px;margin-bottom:10px;border:1px solid #eee;display:flex;flex-direction:column;gap:5px}
+.filters-row{display:flex;gap:7px;flex-wrap:wrap;align-items:flex-end}
+.filters-row+.filters-row{padding-top:5px;border-top:1px solid #e0e0e0}
+.f-item{display:flex;flex-direction:row;align-items:center;gap:4px;position:relative}
+.f-item label{font-size:8px;font-weight:700;color:#666;white-space:nowrap}
+.multiselect{padding:1px 5px;border-radius:3px;border:1px solid #ccc;font-size:9px;height:20px;cursor:pointer;background:#fff;min-width:90px;max-width:140px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.dropdown-content{display:none;position:absolute;top:100%;left:0;background:#fff;border:1px solid #ccc;z-index:200;max-height:220px;overflow-y:auto;box-shadow:0 4px 8px rgba(0,0,0,.12);padding:4px;min-width:160px;border-radius:3px}
+.dropdown-content label{display:flex;align-items:center;gap:6px;padding:4px 5px;cursor:pointer;font-weight:400;font-size:10px;color:#333;white-space:nowrap}
+.dropdown-content.open{display:block}
+.btn-clear{background:var(--rojo);color:#fff;border:none;padding:2px 10px;cursor:pointer;border-radius:3px;font-size:9px;font-weight:700;height:20px}
+.kpi-row{display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.kpi-card{flex:1;background:#f9f9f9;border:1px solid #e8e8e8;border-radius:10px;padding:12px 16px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,.06);min-height:90px;text-align:center;min-width:140px}
+.kpi-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#999;width:100%}
+.kpi-value{font-size:22px;font-weight:800;color:#333F48;line-height:1;flex:1;display:flex;align-items:center;justify-content:center;width:100%}
+.kpi-sub{font-size:10px;color:#888;text-align:center;width:100%}
+.chart-title{font-size:13px;font-weight:700;color:#333;margin-bottom:6px;padding-left:2px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.chart-title .ct-dash{font-size:11px;font-weight:600;background:#333F48;color:#fff;padding:2px 8px;border-radius:20px}
+.chart-title .ct-zone{font-size:11px;font-weight:600;background:#E4002B;color:#fff;padding:2px 8px;border-radius:20px}
+.chart-title .ct-info{font-size:11px;color:#888;font-weight:500}
+.chart-container{height:420px;position:relative;margin-top:10px}
+#uploadArea{text-align:center;padding:40px;border:2px dashed #E4002B;border-radius:8px}
+#uploadArea p{color:#666;font-size:13px}
+.tabla-wrap{margin-top:20px;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.tabla-toolbar{display:flex;align-items:center;justify-content:space-between;background:#333F48;color:#fff;padding:8px 14px;font-size:11px;font-weight:700}
+.btn-dl{background:#00882B;color:#fff;border:none;padding:4px 14px;border-radius:4px;cursor:pointer;font-size:10px;font-weight:700}
+.btn-dl:hover{background:#006820}
+.tabla-scroll{overflow-x:auto;max-height:420px;overflow-y:auto}
+.tbl{width:100%;border-collapse:collapse;font-size:11px;font-family:'Segoe UI',sans-serif}
+.tbl thead th{background:#333F48;color:#fff;padding:6px 10px;text-align:center;white-space:nowrap;font-size:10px;position:sticky;top:0;z-index:2;border-right:1px solid #4a5a68}
+.tbl tbody td{padding:5px 10px;border-bottom:1px solid #eee;border-right:1px solid #eee;text-align:center;white-space:nowrap}
+.tbl tbody tr:hover td{background:#edf3ff}
+.tbl tbody td.txt-left{text-align:left}
+.tbl .row-critico{background:rgba(192,0,0,.08)}
+.vista{display:none}
+.vista.active{display:block}
+.kpi-card .kpi-value.danger{color:#C00000}
+.kpi-card .kpi-value.ok{color:#00AF50}
+.kpi-card .kpi-value.warn{color:#FFA500}
+.section-title{font-size:13px;font-weight:700;color:#333F48;margin:18px 0 8px 2px;padding-bottom:4px;border-bottom:2px solid #E4002B;display:inline-block}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width:980px){.grid-2{grid-template-columns:1fr}}
+.pct-bar{display:inline-block;height:6px;background:#eee;border-radius:3px;width:60px;vertical-align:middle;margin-left:4px;position:relative;overflow:hidden}
+.pct-bar i{position:absolute;left:0;top:0;height:100%}
+.pct-bar i.danger{background:#C00000}
+.pct-bar i.ok{background:#00AF50}
+.cell-num{font-weight:700;color:#333F48}
+.cell-danger{color:#C00000;font-weight:700}
+.cell-ok{color:#00AF50;font-weight:700}
+.cell-warn{color:#FFC000;font-weight:700}
+</style>
+</head>
+<body>
+
+<div class="header-bar">
+  <div class="header-logo">
+    <div style="font-weight:800;color:#E4002B;font-size:14px;letter-spacing:.5px">SENDA&nbsp;CITI</div>
+  </div>
+  <div class="header-title">
+    <h2>VENCIMIENTO DE ORDENES DE MANTENIMIENTO</h2>
+  </div>
+</div>
+
+<div class="app-body">
+
+  <nav class="sidebar">
+    <div class="nav-group" id="grp1">
+      <div class="nav-group-header open" onclick="toggleGroup('grp1')">
+        <span>VENCIMIENTOS</span>
+        <span class="arrow">&#9654;</span>
+      </div>
+      <div class="nav-children open" id="children-grp1">
+        <button class="tab-btn active" onclick="cambiarVista(1)">Grafica de Vencimientos</button>
+        <button class="tab-btn"        onclick="cambiarVista(2)">Tablas KPIS</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="content-area">
+    <div class="card">
+
+      <div id="uploadArea">
+        <div id="autoLoadMsg" style="color:#555;font-size:13px;margin-bottom:12px;">
+          ⏳ Cargando datos automáticamente...
+        </div>
+        <div id="manualLoad" style="display:none;">
+          <p style="color:#c00;font-size:13px;">No se pudo cargar el archivo automáticamente.<br>Cárguelo manualmente:</p>
+          <input type="file" id="fileInput" accept=".xlsx">
+        </div>
+      </div>
+
+      <div id="mainUI" style="display:none;">
+
+        <!-- ── FILTROS (3 filas) ───────────────────────────────────── -->
+        <div class="filters-wrap">
+          <!-- Fila 1: ZONA / SUBZONA / DIVISION -->
+          <div class="filters-row">
+            <div class="f-item">
+              <label>ZONA</label>
+              <div class="multiselect" id="msZONA">Todos...</div>
+              <div class="dropdown-content" id="optsZONA"></div>
+            </div>
+            <div class="f-item">
+              <label>SUBZONA</label>
+              <div class="multiselect" id="msSUBZONA">Todos...</div>
+              <div class="dropdown-content" id="optsSUBZONA"></div>
+            </div>
+            <div class="f-item">
+              <label>DIVISION</label>
+              <div class="multiselect" id="msDIVISION">Todos...</div>
+              <div class="dropdown-content" id="optsDIVISION"></div>
+            </div>
+            <button class="btn-clear" onclick="resetAll()">LIMPIAR FILTROS</button>
+          </div>
+          <!-- Fila 2 -->
+          <div class="filters-row">
+            <div class="f-item">
+              <label>DESCRIPCION MTTO</label>
+              <div class="multiselect" id="msDESCRIPCION MANTENIMIENTO">Todos...</div>
+              <div class="dropdown-content" id="optsDESCRIPCION MANTENIMIENTO"></div>
+            </div>
+            <div class="f-item">
+              <label>DESCRIP ESTAUS</label>
+              <div class="multiselect" id="msDESCRIP ESTAUS">Todos...</div>
+              <div class="dropdown-content" id="optsDESCRIP ESTAUS"></div>
+            </div>
+            <div class="f-item">
+              <label>TIPO MTTO</label>
+              <div class="multiselect" id="msTIPO MTTO">Todos...</div>
+              <div class="dropdown-content" id="optsTIPO MTTO"></div>
+            </div>
+            <div class="f-item">
+              <label>ESTATUS</label>
+              <div class="multiselect" id="msESTATUS">Todos...</div>
+              <div class="dropdown-content" id="optsESTATUS"></div>
+            </div>
+            <div class="f-item">
+              <label>GRUPOS</label>
+              <div class="multiselect" id="msGRUPOS">Todos...</div>
+              <div class="dropdown-content" id="optsGRUPOS"></div>
+            </div>
+            <div class="f-item">
+              <label>DIFERENCIAS</label>
+              <div class="multiselect" id="msDIFERENCIAS">Todos...</div>
+              <div class="dropdown-content" id="optsDIFERENCIAS"></div>
+            </div>
+          </div>
+          <!-- Fila 3 -->
+          <div class="filters-row">
+            <div class="f-item">
+              <label>TIPO VEHICULO</label>
+              <div class="multiselect" id="msTIPO VEHICULO">Todos...</div>
+              <div class="dropdown-content" id="optsTIPO VEHICULO"></div>
+            </div>
+            <div class="f-item">
+              <label>MARCA CARROCERIA</label>
+              <div class="multiselect" id="msMARCA CARROCERIA">Todos...</div>
+              <div class="dropdown-content" id="optsMARCA CARROCERIA"></div>
+            </div>
+            <div class="f-item">
+              <label>TIPO CARROCERIA</label>
+              <div class="multiselect" id="msTIPO CARROCERIA">Todos...</div>
+              <div class="dropdown-content" id="optsTIPO CARROCERIA"></div>
+            </div>
+            <div class="f-item">
+              <label>MARCA CHASIS</label>
+              <div class="multiselect" id="msMARCA CHASIS">Todos...</div>
+              <div class="dropdown-content" id="optsMARCA CHASIS"></div>
+            </div>
+            <div class="f-item">
+              <label>TIPO CHASIS</label>
+              <div class="multiselect" id="msTIPO CHASIS">Todos...</div>
+              <div class="dropdown-content" id="optsTIPO CHASIS"></div>
+            </div>
+            <div class="f-item">
+              <label>MARCA MOTOR</label>
+              <div class="multiselect" id="msMARCA MOTOR">Todos...</div>
+              <div class="dropdown-content" id="optsMARCA MOTOR"></div>
+            </div>
+            <div class="f-item">
+              <label>TIPO MOTOR</label>
+              <div class="multiselect" id="msTIPO MOTOR">Todos...</div>
+              <div class="dropdown-content" id="optsTIPO MOTOR"></div>
+            </div>
+            <div class="f-item">
+              <label>TIPO COMBUSTIBLE</label>
+              <div class="multiselect" id="msTIPO COMBUSTIBLE">Todos...</div>
+              <div class="dropdown-content" id="optsTIPO COMBUSTIBLE"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ════════════ VISTA 1: GRAFICA DE VENCIMIENTOS ════════════ -->
+        <div class="vista active" id="vista1">
+
+          <!-- KPI Cards -->
+          <div class="kpi-row">
+            <div class="kpi-card">
+              <div class="kpi-label">ORDENES MAYOR 110%</div>
+              <div class="kpi-value danger" id="kpiV1">—</div>
+              <div class="kpi-sub">Cantidad vencidas</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">% MAYOR 110%</div>
+              <div class="kpi-value danger" id="kpiV2">—</div>
+              <div class="kpi-sub" id="kpiV2Sub">del total</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">ORDENES MENOR 110%</div>
+              <div class="kpi-value ok" id="kpiV3">—</div>
+              <div class="kpi-sub">Cantidad al corriente</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">% MENOR 110%</div>
+              <div class="kpi-value ok" id="kpiV4">—</div>
+              <div class="kpi-sub" id="kpiV4Sub">del total</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">DIVISIÓN + MAYOR 110%</div>
+              <div class="kpi-value" id="kpiV5" style="font-size:16px">—</div>
+              <div class="kpi-sub" id="kpiV5Sub"></div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-label">DIVISIÓN - MAYOR 110%</div>
+              <div class="kpi-value" id="kpiV6" style="font-size:16px">—</div>
+              <div class="kpi-sub" id="kpiV6Sub"></div>
+            </div>
+          </div>
+
+          <div class="chart-title">
+            <span class="ct-dash">Vencimientos</span>
+            <span class="ct-zone" id="ctZone">Todas las zonas</span>
+            <span class="ct-info" id="ctInfo">—</span>
+          </div>
+
+          <div class="chart-container">
+            <canvas id="myChart"></canvas>
+          </div>
+
+          <!-- Tabla MAYOR 110% -->
+          <div class="tabla-wrap">
+            <div class="tabla-toolbar">
+              <span id="tblTitulo">Ordenes con vencimiento MAYOR 110%</span>
+              <button class="btn-dl" onclick="descargarExcelDetalle()">&#11015; Descargar Excel</button>
+            </div>
+            <div class="tabla-scroll">
+              <table class="tbl" id="tblDetalle">
+                <thead>
+                  <tr>
+                    <th>ORDEN</th>
+                    <th>DIVISION</th>
+                    <th>UNIDAD</th>
+                    <th>CODIGO MTTO</th>
+                    <th>DESCRIPCION MANTENIMIENTO</th>
+                    <th>% VENCIMIENTO</th>
+                    <th>DESCRIP ESTAUS</th>
+                  </tr>
+                </thead>
+                <tbody id="tblDetalleBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+        </div><!-- /vista1 -->
+
+        <!-- ════════════ VISTA 2: TABLAS KPIS ════════════ -->
+        <div class="vista" id="vista2">
+
+          <div class="section-title">% Mayor / Menor 110% por Zona, Subzona y División</div>
+          <div class="tabla-wrap">
+            <div class="tabla-toolbar">
+              <span>Distribución por ubicación</span>
+              <button class="btn-dl" onclick="descargarTabla('tblZonaSub','distribucion_zona_subzona_division')">&#11015; Descargar Excel</button>
+            </div>
+            <div class="tabla-scroll">
+              <table class="tbl" id="tblZonaSub">
+                <thead>
+                  <tr>
+                    <th>ZONA</th><th>SUBZONA</th><th>DIVISION</th>
+                    <th>TOTAL ORDENES</th>
+                    <th>MAYOR 110%</th><th>% MAYOR 110%</th>
+                    <th>MENOR 110%</th><th>% MENOR 110%</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="grid-2">
+            <div>
+              <div class="section-title">Ordenes MAYOR 110% por División y DESCRIP ESTAUS</div>
+              <div class="tabla-wrap">
+                <div class="tabla-toolbar">
+                  <span>División × Descrip Estaus</span>
+                  <button class="btn-dl" onclick="descargarTabla('tblDivEstaus','division_descrip_estaus')">&#11015; Descargar Excel</button>
+                </div>
+                <div class="tabla-scroll">
+                  <table class="tbl" id="tblDivEstaus">
+                    <thead id="tblDivEstausHead"></thead>
+                    <tbody id="tblDivEstausBody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="section-title">Ordenes MAYOR 110% por División</div>
+              <div class="tabla-wrap">
+                <div class="tabla-toolbar">
+                  <span>Ranking por división</span>
+                  <button class="btn-dl" onclick="descargarTabla('tblDiv','ordenes_mayor110_por_division')">&#11015; Descargar Excel</button>
+                </div>
+                <div class="tabla-scroll">
+                  <table class="tbl" id="tblDiv">
+                    <thead>
+                      <tr><th>DIVISION</th><th>ORDENES MAYOR 110%</th><th>% del total MAYOR</th></tr>
+                    </thead>
+                    <tbody></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-title">Unidades y % MAYOR / MENOR 110% por TIPO MTTO</div>
+          <div class="tabla-wrap">
+            <div class="tabla-toolbar">
+              <span>Tipo de Mantenimiento</span>
+              <button class="btn-dl" onclick="descargarTabla('tblTipoMtto','tipo_mantenimiento_unidades')">&#11015; Descargar Excel</button>
+            </div>
+            <div class="tabla-scroll">
+              <table class="tbl" id="tblTipoMtto">
+                <thead>
+                  <tr>
+                    <th>TIPO MTTO</th>
+                    <th>UNIDADES TOTAL</th>
+                    <th>UNIDADES MAYOR 110%</th><th>% MAYOR 110%</th>
+                    <th>UNIDADES MENOR 110%</th><th>% MENOR 110%</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+
+        </div><!-- /vista2 -->
+
+      </div><!-- /mainUI -->
+    </div><!-- /card -->
+  </div><!-- /content-area -->
+</div><!-- /app-body -->
+
+<script>
+'use strict';
+
+// ╔══════════════════════════════════════════════════════════════════╗
+// ║  ── CONFIGURACIÓN ──                                            ║
+// ╚══════════════════════════════════════════════════════════════════╝
+
+const EXCEL_URL = 'vencimientosdeots.xlsx';
+
+const FILTER_FIELDS = [
+  'ZONA','SUBZONA','DIVISION',
+  'DESCRIPCION MANTENIMIENTO','DESCRIP ESTAUS','TIPO MTTO','ESTATUS','GRUPOS','DIFERENCIAS',
+  'TIPO VEHICULO','MARCA CARROCERIA','TIPO CARROCERIA','MARCA CHASIS','TIPO CHASIS',
+  'MARCA MOTOR','TIPO MOTOR','TIPO COMBUSTIBLE'
+];
+
+// Orden y colores de los grupos para la gráfica
+const GRUPOS_ORDEN = [
+  '0%-22%','22%-44%','44%-66%','66%-88%','88%-110%',
+  '110%-132%','132%-154%','154%-176%','176%-198%','198%-220%','221% o Mas'
+];
+const GRUPOS_COLOR = {
+  '0%-22%':    '#00AF50',
+  '22%-44%':   '#00AF50',
+  '44%-66%':   '#00AF50',
+  '66%-88%':   '#00AF50',
+  '88%-110%':  '#00AF50',
+  '110%-132%': '#FFC000',
+  '132%-154%': '#C00000',
+  '154%-176%': '#C00000',
+  '176%-198%': '#C00000',
+  '198%-220%': '#C00000',
+  '221% o Mas':'#C00000'
+};
+
+// ── Estado global ────────────────────────────────────────────────────
+let rawData = [], myChart = null, renderTimer = null;
+let vistaActual = 1;
+let filters = Object.fromEntries(FILTER_FIELDS.map(f=>[f,[]]));
+let filteredCache = [];
+
+const $ = id => document.getElementById(id);
+
+function toggleGroup(id) {
+  const h=document.querySelector(`[onclick="toggleGroup('${id}')"]`), c=$(`children-${id}`);
+  if(h&&c){ h.classList.toggle('open'); c.classList.toggle('open'); }
+}
+
+function cambiarVista(n) {
+  vistaActual = n;
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-btn')[n-1]?.classList.add('active');
+  document.querySelectorAll('.vista').forEach(v=>v.classList.remove('active'));
+  $('vista'+n).classList.add('active');
+  render();
+}
+
+// ── Dropdowns ────────────────────────────────────────────────────────
+document.addEventListener('click', e => {
+  if(e.target.type==='checkbox'||e.target.tagName==='LABEL') return;
+  const inside=e.target.closest('.f-item');
+  document.querySelectorAll('.dropdown-content').forEach(d=>{
+    if(!inside||!inside.contains(d)) d.classList.remove('open');
+  });
+});
+
+// ── Carga Excel ──────────────────────────────────────────────────────
+function procesarExcel(buf) {
+  const wb=XLSX.read(buf,{type:'array',cellDates:true});
+  const raw=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+  rawData=raw.map(r=>{ const n={};for(const k in r) n[k.trim().toUpperCase()]=r[k];return n; });
+  $('mainUI').style.display='block';
+  $('uploadArea').style.display='none';
+  buildFilters();
+  bindMultiselects();
+  render();
+}
+
+function bindMultiselects(){
+  document.querySelectorAll('.multiselect').forEach(ms=>{
+    ms.addEventListener('click', ev=>{
+      ev.stopPropagation();
+      const dd=ms.nextElementSibling, wasOpen=dd.classList.contains('open');
+      document.querySelectorAll('.dropdown-content').forEach(d=>d.classList.remove('open'));
+      if(!wasOpen) dd.classList.add('open');
+    });
+  });
+}
+
+window.addEventListener('load',()=>{
+  fetch(EXCEL_URL+'?v='+Date.now(),{cache:'no-store'})
+    .then(r=>{ if(!r.ok) throw 0; return r.arrayBuffer(); })
+    .then(procesarExcel)
+    .catch(()=>{ $('autoLoadMsg').style.display='none'; $('manualLoad').style.display='block'; });
+});
+
+document.addEventListener('change',e=>{
+  if(e.target.id!=='fileInput') return;
+  const reader=new FileReader();
+  reader.onload=ev=>procesarExcel(ev.target.result);
+  reader.readAsArrayBuffer(e.target.files[0]);
+});
+
+// ── Filtros ──────────────────────────────────────────────────────────
+function buildFilters() {
+  FILTER_FIELDS.forEach(field=>{
+    const cont=$('opts'+field);
+    if(!cont) return;
+    let opts=[...new Set(rawData.map(d=>d[field]))].filter(v=>v!==undefined && v!==null && v!=='');
+    // Orden especial para GRUPOS
+    if(field==='GRUPOS') opts.sort((a,b)=>GRUPOS_ORDEN.indexOf(a)-GRUPOS_ORDEN.indexOf(b));
+    else opts.sort((a,b)=>String(a).localeCompare(String(b),'es',{numeric:true}));
+    cont.innerHTML=opts.map(o=>
+      `<label><input type="checkbox" value="${String(o).replace(/"/g,'&quot;')}" onclick="handleFilterChange('${field.replace(/'/g,"\\'")}')"> ${o}</label>`
+    ).join('');
+  });
+}
+
+function handleFilterChange(field) {
+  if(field) {
+    const cont=$('opts'+field);
+    if(cont) filters[field]=Array.from(cont.querySelectorAll('input:checked')).map(i=>i.value);
+    $('ms'+field).innerText=filters[field].length?filters[field].join(', '):'Todos...';
+  }
+  clearTimeout(renderTimer); renderTimer=setTimeout(render,60);
+}
+
+function resetAll() {
+  FILTER_FIELDS.forEach(f=>{
+    filters[f]=[];
+    const cont=$('opts'+f);
+    if(cont) cont.querySelectorAll('input').forEach(cb=>cb.checked=false);
+    if($('ms'+f)) $('ms'+f).innerText='Todos...';
+  });
+  render();
+}
+
+// ── Lógica de filtrado ───────────────────────────────────────────────
+function applyFilters() {
+  return rawData.filter(d=>{
+    for(const f of FILTER_FIELDS){
+      if(filters[f].length && !filters[f].includes(String(d[f]))) return false;
+    }
+    return true;
+  });
+}
+
+// ── Render principal ─────────────────────────────────────────────────
+function render() {
+  filteredCache = applyFilters();
+  if(vistaActual===1){
+    renderVista1();
+  } else {
+    renderVista2();
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+//  VISTA 1: GRAFICA DE VENCIMIENTOS
+// ─────────────────────────────────────────────────────────────────────
+function renderVista1(){
+  const data = filteredCache;
+
+  // KPIs
+  const total = data.length;
+  const mayor = data.filter(d=>d['DIFERENCIAS']==='MAYOR 110%').length;
+  const menor = data.filter(d=>d['DIFERENCIAS']==='MENOR 110%').length;
+  const pctMayor = total>0 ? (mayor/total*100) : 0;
+  const pctMenor = total>0 ? (menor/total*100) : 0;
+
+  $('kpiV1').textContent = mayor.toLocaleString('es-MX');
+  $('kpiV2').textContent = pctMayor.toFixed(1)+'%';
+  $('kpiV2Sub').textContent = `de ${total.toLocaleString('es-MX')} órdenes`;
+  $('kpiV3').textContent = menor.toLocaleString('es-MX');
+  $('kpiV4').textContent = pctMenor.toFixed(1)+'%';
+  $('kpiV4Sub').textContent = `de ${total.toLocaleString('es-MX')} órdenes`;
+
+  // División con más / menos MAYOR 110%
+  const divCount = {};
+  data.forEach(d=>{
+    if(d['DIFERENCIAS']==='MAYOR 110%'){
+      const k=d['DIVISION']||'(s/d)';
+      divCount[k]=(divCount[k]||0)+1;
+    }
+  });
+  const divEntries = Object.entries(divCount);
+  if(divEntries.length>0){
+    divEntries.sort((a,b)=>b[1]-a[1]);
+    const max = divEntries[0], min = divEntries[divEntries.length-1];
+    $('kpiV5').textContent = max[0];
+    $('kpiV5Sub').textContent = max[1].toLocaleString('es-MX')+' órdenes';
+    $('kpiV6').textContent = min[0];
+    $('kpiV6Sub').textContent = min[1].toLocaleString('es-MX')+' órdenes';
+  } else {
+    $('kpiV5').textContent='—'; $('kpiV5Sub').textContent='';
+    $('kpiV6').textContent='—'; $('kpiV6Sub').textContent='';
+  }
+
+  // Gráfica: conteo por GRUPOS
+  const counts = {};
+  GRUPOS_ORDEN.forEach(g=>counts[g]=0);
+  data.forEach(d=>{
+    const g=d['GRUPOS'];
+    if(g && counts[g]!==undefined && d['ORDEN']!==undefined && d['ORDEN']!==null && d['ORDEN']!==''){
+      counts[g]++;
+    }
+  });
+
+  const labels = GRUPOS_ORDEN;
+  const valores = labels.map(l=>counts[l]);
+  const colores = labels.map(l=>GRUPOS_COLOR[l]);
+  const yMax = Math.max(...valores, 1);
+
+  // Título dinámico
+  const zonaSel = filters['ZONA']?.length ? filters['ZONA'].join(', ') : 'Todas las zonas';
+  $('ctZone').textContent = zonaSel;
+  $('ctInfo').textContent = `${total.toLocaleString('es-MX')} órdenes filtradas`;
+
+  // Render Chart.js
+  if(myChart){ myChart.destroy(); myChart=null; }
+  const cont=document.querySelector('.chart-container');
+  const old=$('myChart'); if(old) old.remove();
+  const cv=document.createElement('canvas'); cv.id='myChart'; cont.appendChild(cv);
+
+  myChart = new Chart(cv, {
+    type:'bar',
+    data:{
+      labels:labels,
+      datasets:[{
+        label:'Cantidad de Órdenes',
+        data:valores,
+        backgroundColor:colores,
+        borderColor:colores,
+        borderWidth:1
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      scales:{
+        x:{ ticks:{minRotation:0,font:{size:10,weight:'600'}}, grid:{display:false} },
+        y:{ beginAtZero:true, max:Math.ceil(yMax*1.15), grid:{color:'#eee'},
+            ticks:{font:{size:10}, callback:v=>v.toLocaleString('es-MX')} }
+      },
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          callbacks:{
+            label:ctx=>'Órdenes: '+ctx.parsed.y.toLocaleString('es-MX')
+          }
+        }
+      }
+    },
+    plugins:[{
+      afterDatasetsDraw:chart=>{
+        const ctx=chart.ctx;
+        ctx.font='bold 11px Segoe UI';
+        ctx.fillStyle='#333';
+        ctx.textAlign='center';
+        chart.data.datasets[0].data.forEach((v,i)=>{
+          if(v>0){
+            const bar=chart.getDatasetMeta(0).data[i];
+            ctx.fillText(v.toLocaleString('es-MX'), bar.x, bar.y-6);
+          }
+        });
+      }
+    }]
+  });
+
+  // Tabla detalle MAYOR 110%
+  buildTablaDetalle(data);
+}
+
+function buildTablaDetalle(data){
+  const body=$('tblDetalleBody');
+  const may = data.filter(d=>d['DIFERENCIAS']==='MAYOR 110%');
+  // ordenar desc por % VENCIMIENTO
+  may.sort((a,b)=> (Number(b['% VENCIMIENTO'])||0) - (Number(a['% VENCIMIENTO'])||0) );
+
+  // Cap visual: render máx 2000 filas para no congelar el navegador; descarga sí lleva todas
+  const cap = 2000;
+  const slice = may.slice(0,cap);
+  const fmtPct = v=>{
+    const n=Number(v); if(isNaN(n)) return '';
+    return (n*100).toFixed(1)+'%';
+  };
+  body.innerHTML = slice.map(d=>{
+    const pct = Number(d['% VENCIMIENTO'])||0;
+    let cls='cell-warn';
+    if(pct*100>=132) cls='cell-danger';
+    else if(pct*100>=110) cls='cell-warn';
+    return `<tr>
+      <td>${d['ORDEN']??''}</td>
+      <td>${d['DIVISION']??''}</td>
+      <td>${d['UNIDAD']??''}</td>
+      <td>${d['CODIGO MTTO']??''}</td>
+      <td class="txt-left">${d['DESCRIPCION MANTENIMIENTO']??''}</td>
+      <td class="${cls}">${fmtPct(d['% VENCIMIENTO'])}</td>
+      <td>${d['DESCRIP ESTAUS']??''}</td>
+    </tr>`;
+  }).join('');
+
+  // Footer info
+  const tit = $('tblTitulo');
+  if(may.length>cap){
+    tit.textContent = `Ordenes con vencimiento MAYOR 110% — mostrando ${cap.toLocaleString('es-MX')} de ${may.length.toLocaleString('es-MX')} (la descarga incluye todas)`;
+  } else {
+    tit.textContent = `Ordenes con vencimiento MAYOR 110% — ${may.length.toLocaleString('es-MX')} registros`;
+  }
+}
+
+function descargarExcelDetalle(){
+  const may = filteredCache.filter(d=>d['DIFERENCIAS']==='MAYOR 110%');
+  may.sort((a,b)=> (Number(b['% VENCIMIENTO'])||0) - (Number(a['% VENCIMIENTO'])||0) );
+  const rows = may.map(d=>({
+    'ORDEN': d['ORDEN']??'',
+    'DIVISION': d['DIVISION']??'',
+    'UNIDAD': d['UNIDAD']??'',
+    'CODIGO MTTO': d['CODIGO MTTO']??'',
+    'DESCRIPCION MANTENIMIENTO': d['DESCRIPCION MANTENIMIENTO']??'',
+    '% VENCIMIENTO': Number(d['% VENCIMIENTO'])||0,
+    'DESCRIP ESTAUS': d['DESCRIP ESTAUS']??''
+  }));
+  const ws = XLSX.utils.json_to_sheet(rows);
+  // formato porcentaje col F (% VENCIMIENTO)
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for(let r=1; r<=range.e.r; r++){
+    const cell = ws[XLSX.utils.encode_cell({r,c:5})];
+    if(cell) cell.z = '0.0%';
+  }
+  ws['!cols'] = [{wch:12},{wch:18},{wch:10},{wch:14},{wch:38},{wch:14},{wch:22}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'MAYOR 110%');
+  XLSX.writeFile(wb, 'ordenes_mayor_110.xlsx');
+}
+
+// ─────────────────────────────────────────────────────────────────────
+//  VISTA 2: TABLAS KPIS
+// ─────────────────────────────────────────────────────────────────────
+function renderVista2(){
+  const data = filteredCache;
+
+  // --- Tabla 1: Zona / Subzona / División ---
+  const map1 = {};
+  data.forEach(d=>{
+    const k=[d['ZONA']||'(s/d)', d['SUBZONA']||'(s/d)', d['DIVISION']||'(s/d)'].join('||');
+    if(!map1[k]) map1[k]={zona:d['ZONA']||'',sub:d['SUBZONA']||'',div:d['DIVISION']||'',total:0,may:0,men:0};
+    map1[k].total++;
+    if(d['DIFERENCIAS']==='MAYOR 110%') map1[k].may++;
+    else if(d['DIFERENCIAS']==='MENOR 110%') map1[k].men++;
+  });
+  const rows1 = Object.values(map1).sort((a,b)=>{
+    if(a.zona!==b.zona) return a.zona.localeCompare(b.zona);
+    if(a.sub!==b.sub) return a.sub.localeCompare(b.sub);
+    return a.div.localeCompare(b.div);
+  });
+  const tbody1 = document.querySelector('#tblZonaSub tbody');
+  tbody1.innerHTML = rows1.map(r=>{
+    const pmay = r.total>0 ? (r.may/r.total*100) : 0;
+    const pmen = r.total>0 ? (r.men/r.total*100) : 0;
+    return `<tr>
+      <td class="txt-left">${r.zona}</td>
+      <td class="txt-left">${r.sub}</td>
+      <td class="txt-left">${r.div}</td>
+      <td class="cell-num">${r.total.toLocaleString('es-MX')}</td>
+      <td class="cell-danger">${r.may.toLocaleString('es-MX')}</td>
+      <td class="cell-danger">${pmay.toFixed(1)}% <span class="pct-bar"><i class="danger" style="width:${Math.min(100,pmay)}%"></i></span></td>
+      <td class="cell-ok">${r.men.toLocaleString('es-MX')}</td>
+      <td class="cell-ok">${pmen.toFixed(1)}% <span class="pct-bar"><i class="ok" style="width:${Math.min(100,pmen)}%"></i></span></td>
+    </tr>`;
+  }).join('');
+
+  // --- Tabla 2: División x DESCRIP ESTAUS (solo MAYOR 110%) ---
+  const may = data.filter(d=>d['DIFERENCIAS']==='MAYOR 110%');
+  const estaus = [...new Set(may.map(d=>d['DESCRIP ESTAUS']||'(s/d)'))].sort();
+  const map2 = {};
+  may.forEach(d=>{
+    const div = d['DIVISION']||'(s/d)';
+    const es  = d['DESCRIP ESTAUS']||'(s/d)';
+    if(!map2[div]){ map2[div]={}; estaus.forEach(e=>map2[div][e]=0); map2[div]._total=0; }
+    map2[div][es]=(map2[div][es]||0)+1;
+    map2[div]._total++;
+  });
+  const divs = Object.keys(map2).sort((a,b)=>map2[b]._total - map2[a]._total);
+  $('tblDivEstausHead').innerHTML = '<tr><th>DIVISION</th>' +
+    estaus.map(e=>`<th>${e}</th>`).join('') +
+    '<th>TOTAL</th></tr>';
+  $('tblDivEstausBody').innerHTML = divs.map(div=>{
+    return `<tr>
+      <td class="txt-left">${div}</td>
+      ${estaus.map(e=>`<td class="cell-danger">${(map2[div][e]||0).toLocaleString('es-MX')}</td>`).join('')}
+      <td class="cell-num">${map2[div]._total.toLocaleString('es-MX')}</td>
+    </tr>`;
+  }).join('') +
+  // Fila total
+  `<tr style="background:#333F48;color:#fff;font-weight:800">
+    <td class="txt-left" style="background:#333F48;color:#fff">TOTAL</td>
+    ${estaus.map(e=>{
+      const s=divs.reduce((a,d)=>a+(map2[d][e]||0),0);
+      return `<td style="background:#333F48;color:#fff">${s.toLocaleString('es-MX')}</td>`;
+    }).join('')}
+    <td style="background:#333F48;color:#fff">${may.length.toLocaleString('es-MX')}</td>
+  </tr>`;
+
+  // --- Tabla 3: Ordenes MAYOR 110% por División ---
+  const map3={};
+  may.forEach(d=>{
+    const k=d['DIVISION']||'(s/d)';
+    map3[k]=(map3[k]||0)+1;
+  });
+  const arr3 = Object.entries(map3).sort((a,b)=>b[1]-a[1]);
+  const tot3 = may.length;
+  document.querySelector('#tblDiv tbody').innerHTML = arr3.map(([k,v])=>{
+    const p = tot3>0 ? (v/tot3*100) : 0;
+    return `<tr>
+      <td class="txt-left">${k}</td>
+      <td class="cell-danger">${v.toLocaleString('es-MX')}</td>
+      <td>${p.toFixed(1)}% <span class="pct-bar"><i class="danger" style="width:${Math.min(100,p)}%"></i></span></td>
+    </tr>`;
+  }).join('') +
+  `<tr style="background:#333F48;color:#fff;font-weight:800">
+    <td class="txt-left" style="background:#333F48;color:#fff">TOTAL</td>
+    <td style="background:#333F48;color:#fff">${tot3.toLocaleString('es-MX')}</td>
+    <td style="background:#333F48;color:#fff">100.0%</td>
+  </tr>`;
+
+  // --- Tabla 4: TIPO MTTO unidades y % ---
+  // "Unidades" = registros (cada fila es una orden de una unidad por tipo mtto). Pero más útil: unidades distintas.
+  // Interpretación: cantidad de unidades (registros) y % de cada estado dentro de su tipo mtto.
+  const map4={};
+  data.forEach(d=>{
+    const k=d['TIPO MTTO']||'(s/d)';
+    if(!map4[k]) map4[k]={total:0,may:0,men:0,unidades:new Set()};
+    map4[k].total++;
+    if(d['UNIDAD']!==undefined && d['UNIDAD']!==null) map4[k].unidades.add(String(d['UNIDAD']));
+    if(d['DIFERENCIAS']==='MAYOR 110%') map4[k].may++;
+    else if(d['DIFERENCIAS']==='MENOR 110%') map4[k].men++;
+  });
+  const arr4 = Object.entries(map4).sort((a,b)=>b[1].may - a[1].may);
+  document.querySelector('#tblTipoMtto tbody').innerHTML = arr4.map(([k,v])=>{
+    const pmay = v.total>0 ? (v.may/v.total*100) : 0;
+    const pmen = v.total>0 ? (v.men/v.total*100) : 0;
+    return `<tr>
+      <td class="txt-left">${k}</td>
+      <td class="cell-num">${v.unidades.size.toLocaleString('es-MX')}</td>
+      <td class="cell-danger">${v.may.toLocaleString('es-MX')}</td>
+      <td class="cell-danger">${pmay.toFixed(1)}% <span class="pct-bar"><i class="danger" style="width:${Math.min(100,pmay)}%"></i></span></td>
+      <td class="cell-ok">${v.men.toLocaleString('es-MX')}</td>
+      <td class="cell-ok">${pmen.toFixed(1)}% <span class="pct-bar"><i class="ok" style="width:${Math.min(100,pmen)}%"></i></span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Descarga genérica de tablas a Excel ──────────────────────────────
+function descargarTabla(tblId, filename){
+  const tbl = $(tblId);
+  if(!tbl) return;
+  // Sacamos texto plano de cada celda (sin HTML extra de las pct-bar)
+  const rows = [];
+  tbl.querySelectorAll('tr').forEach(tr=>{
+    const cells = [];
+    tr.querySelectorAll('th,td').forEach(td=>{
+      // tomar solo el primer nodo de texto, quitando las pct-bar
+      const clone = td.cloneNode(true);
+      clone.querySelectorAll('.pct-bar').forEach(n=>n.remove());
+      cells.push(clone.textContent.trim());
+    });
+    rows.push(cells);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Datos');
+  XLSX.writeFile(wb, filename+'.xlsx');
+}
+</script>
+</body>
+</html>
