@@ -13,7 +13,7 @@ body{font-family:'Segoe UI',Tahoma,sans-serif;background:var(--gris);margin:0;di
 .header-logo{width:var(--side-w);background:#FEFEFE;display:flex;align-items:center;justify-content:center;padding:10px 16px;flex-shrink:0}
 .header-logo img{height:42px;width:100%;object-fit:contain;display:block}
 .header-title{flex:1;background:var(--rojo-h);color:#fff;display:flex;align-items:center;justify-content:center;padding:14px 24px}
-.header-title h2{margin:0;font-size:16px;letter-spacing:.5px}
+.header-title h2{margin:0;font-size:16px;letter-spacing:.5px;text-transform:uppercase}
 .app-body{display:flex;flex:1}
 .sidebar{width:var(--side-w);background:var(--side-bg);min-height:calc(100vh - 52px);flex-shrink:0;overflow-y:auto}
 .nav-group{border-bottom:1px solid #3a4a55}
@@ -45,9 +45,8 @@ body{font-family:'Segoe UI',Tahoma,sans-serif;background:var(--gris);margin:0;di
 .kpi-row{display:flex;gap:12px;margin-bottom:12px;flex-wrap:wrap}
 .kpi-card{flex:1;background:#f9f9f9;border:1px solid #e8e8e8;border-radius:10px;padding:12px 16px;display:flex;flex-direction:column;align-items:center;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,.06);min-height:90px;text-align:center;min-width:140px}
 .kpi-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#999;width:100%}
-.kpi-value{font-size:22px;font-weight:800;color:var(--side-bg);line-height:1;flex:1;display:flex;align-items:center;justify-content:center;width:100%}
-.kpi-value.danger{color:#FF0000}
-.kpi-value.ok{color:#00B050}
+.kpi-value{font-size:22px;font-weight:800;color:#333F48;line-height:1;flex:1;display:flex;align-items:center;justify-content:center;width:100%}
+.kpi-value.danger,.kpi-value.ok{color:#333F48}
 .kpi-value.small{font-size:16px}
 .kpi-sub{font-size:10px;color:#888;width:100%}
 .chart-title{font-size:13px;font-weight:700;color:#333;margin-bottom:6px;padding-left:2px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -59,13 +58,13 @@ body{font-family:'Segoe UI',Tahoma,sans-serif;background:var(--gris);margin:0;di
 #uploadArea{text-align:center;padding:40px;border:2px dashed var(--rojo-h);border-radius:8px}
 #uploadArea p{color:#666;font-size:13px}
 .tabla-wrap{margin-top:20px;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.1)}
-.tabla-toolbar{display:flex;align-items:center;justify-content:space-between;background:var(--side-bg);color:#fff;padding:8px 14px;font-size:11px;font-weight:700}
+.tabla-toolbar{display:flex;align-items:center;justify-content:space-between;background:#333F48;color:#fff;padding:8px 14px;font-size:11px;font-weight:700}
 .btn-dl{background:#227447;color:#fff;border:none;padding:4px 14px;border-radius:4px;cursor:pointer;font-size:10px;font-weight:700}
 .btn-dl:hover{background:#1A5D38}
 .tabla-scroll{overflow-x:auto}
 .tabla-scroll.with-vscroll{max-height:420px;overflow-y:auto}
 .tbl{width:100%;border-collapse:collapse;font-size:11px}
-.tbl thead th{background:var(--side-bg);color:#fff;padding:6px 10px;text-align:center;white-space:nowrap;font-size:10px;position:sticky;top:0;z-index:2;border-right:1px solid #4a5a68}
+.tbl thead th{background:#333F48;color:#fff;padding:6px 10px;text-align:center;white-space:nowrap;font-size:10px;position:sticky;top:0;z-index:2;border-right:1px solid #4a5a68}
 .tbl tbody td{padding:5px 10px;border-bottom:1px solid #eee;border-right:1px solid #eee;text-align:center;white-space:nowrap}
 .tbl tbody tr:hover td{background:#edf3ff}
 .tbl tbody td.txt-left{text-align:left}
