@@ -886,5 +886,71 @@ function descargarTabla(tblId, filename){
   XLSX.writeFile(wb, filename+'.xlsx');
 }
 </script>
+<!-- ===== Selector de versiones ===== -->
+<style>
+  #vs-bar{position:fixed;bottom:14px;right:14px;z-index:99999;display:flex;gap:6px;align-items:center;
+    background:#fff;border:1px solid #c9ced6;border-radius:8px;padding:6px 8px;
+    font:11px/1.2 'Segoe UI',Tahoma,sans-serif;color:#333F48;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+  #vs-bar label{font-weight:700;color:#333F48}
+  #vs-bar select{font:inherit;color:#333F48;padding:4px 6px;max-width:280px;border:1px solid #c9ced6;border-radius:4px;background:#fff;cursor:pointer}
+  #vs-bar select:hover{background:#EDF0F3}
+  #vs-frame{position:fixed;inset:0;z-index:99998;width:100%;height:100%;border:0;background:#fff;display:none}
+  #vs-tag{background:#E4002B;color:#fff;border-radius:4px;padding:2px 6px;display:none;font-weight:700;text-transform:uppercase;letter-spacing:.3px;font-size:10px}
+</style>
+
+<iframe id="vs-frame" title="Versión anterior"></iframe>
+<div id="vs-bar">
+  <span id="vs-tag">Versión anterior</span>
+  <label for="vs-sel">Versión:</label>
+  <select id="vs-sel"><option value="">Cargando…</option></select>
+</div>
+
+<script>
+(function () {
+  if (window.self !== window.top) { document.getElementById('vs-bar').remove(); return; }
+
+  const owner = location.hostname.split('.')[0];
+  const parts = location.pathname.split('/').filter(Boolean);
+  const repo  = parts.shift();
+  let path = parts.join('/');
+  if (!path || location.pathname.endsWith('/')) path = (path ? path + '/' : '') + 'index.html';
+
+  const sel = document.getElementById('vs-sel');
+  const frame = document.getElementById('vs-frame');
+  const tag = document.getElementById('vs-tag');
+
+  fetch(`https://api.github.com/repos/${owner}/${repo}/commits?path=${encodeURIComponent(path)}&per_page=50`)
+    .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(commits => {
+      sel.innerHTML = '';
+      commits.forEach((c, i) => {
+        const f = new Date(c.commit.author.date).toLocaleString('es-MX',
+          { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+        const msg = c.commit.message.split('\n')[0].slice(0, 40);
+        const o = document.createElement('option');
+        o.value = i === 0 ? '' : c.sha;
+        o.textContent = (i === 0 ? 'Actual · ' : '') + f + ' · ' + msg;
+        sel.appendChild(o);
+      });
+    })
+    .catch(e => { sel.innerHTML = '<option value="">No se pudo cargar el historial (' + e.message + ')</option>'; });
+
+  sel.addEventListener('change', () => {
+    const sha = sel.value;
+    if (!sha) { frame.style.display = 'none'; frame.srcdoc = ''; tag.style.display = 'none'; return; }
+    fetch(`https://raw.githubusercontent.com/${owner}/${repo}/${sha}/${path}`)
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
+      .then(html => {
+        const base = `<base href="${location.origin}${location.pathname.replace(/[^/]*$/, '')}">`;
+        html = /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, m => m + base) : base + html;
+        frame.srcdoc = html;
+        frame.style.display = 'block';
+        tag.style.display = 'inline';
+      })
+      .catch(e => alert('No se pudo abrir esa versión: ' + e.message));
+  });
+})();
+</script>
+<!-- ===== Fin selector de versiones ===== -->
 </body>
 </html>
