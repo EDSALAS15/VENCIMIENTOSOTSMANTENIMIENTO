@@ -891,19 +891,17 @@ window._S = S; window._FF = FILTER_FIELDS; window._EX = EXCEL_URL;
 </script>
 <!-- ===== Selector de snapshots del Excel ===== -->
 <style>
-  #vs-bar{position:fixed;bottom:14px;right:14px;z-index:99999;display:flex;gap:6px;align-items:center;
-    background:#fff;border:1px solid #c9ced6;border-radius:8px;padding:6px 8px;
-    font:11px/1.2 'Segoe UI',Tahoma,sans-serif;color:#333F48;box-shadow:0 2px 8px rgba(0,0,0,.15)}
-  #vs-bar label{font-weight:700;color:#333F48}
-  #vs-bar select{font:inherit;color:#333F48;padding:4px 6px;max-width:280px;border:1px solid #c9ced6;border-radius:4px;background:#fff;cursor:pointer}
+  #vs-bar{display:flex;align-items:center;gap:4px;font-family:'Segoe UI',Tahoma,sans-serif;color:#333F48}
+  #vs-bar label{font-size:8px;font-weight:700;color:#666;white-space:nowrap}
+  #vs-bar select{font:9px 'Segoe UI',Tahoma,sans-serif;color:#333F48;padding:1px 5px;max-width:220px;border:1px solid #ccc;border-radius:3px;background:#fff;cursor:pointer;height:20px}
   #vs-bar select:hover{background:#EDF0F3}
   #vs-bar select:disabled{opacity:.55;cursor:progress}
-  #vs-tag{background:#E4002B;color:#fff;border-radius:4px;padding:2px 6px;display:none;font-weight:700;text-transform:uppercase;letter-spacing:.3px;font-size:10px}
+  #vs-tag{background:#E4002B;color:#fff;border-radius:3px;padding:0 6px;display:none;align-items:center;font-weight:700;text-transform:uppercase;letter-spacing:.3px;font-size:8px;height:20px}
 </style>
 
 <div id="vs-bar">
   <span id="vs-tag">Datos históricos</span>
-  <label for="vs-sel">Datos del:</label>
+  <label for="vs-sel">DATOS DEL</label>
   <select id="vs-sel"><option value="">Cargando…</option></select>
 </div>
 
@@ -911,77 +909,79 @@ window._S = S; window._FF = FILTER_FIELDS; window._EX = EXCEL_URL;
 (function () {
   if (window.self !== window.top) { const b=document.getElementById('vs-bar'); if(b) b.remove(); return; }
 
-  // Detectar owner/repo/path del Excel (asume que está en la misma carpeta que este HTML)
-  const owner = location.hostname.split('.')[0];
-  const dirPath = location.pathname.endsWith('/')
-    ? location.pathname
-    : location.pathname.replace(/[^/]*$/, '');
-  const dirParts = dirPath.split('/').filter(Boolean);
-  const repo = dirParts.shift();
-  const baseDir = dirParts.join('/');
-  const excelName = window._EX || 'vencimientosdeots.xlsx';
-  const excelPath = baseDir ? baseDir + '/' + excelName : excelName;
+  window.addEventListener('load', init);
 
-  const sel = document.getElementById('vs-sel');
-  const tag = document.getElementById('vs-tag');
+  function init() {
+    // Mover el selector a la primera fila de filtros, justo después del botón LIMPIAR FILTROS
+    const bar = document.getElementById('vs-bar');
+    const btn = document.getElementById('btnReset');
+    if (bar && btn) btn.insertAdjacentElement('afterend', bar);
 
-  // Listar commits del Excel
-  fetch(`https://api.github.com/repos/${owner}/${repo}/commits?path=${encodeURIComponent(excelPath)}&per_page=50`)
-    .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
-    .then(commits => {
-      if (!Array.isArray(commits) || commits.length === 0) {
-        sel.innerHTML = '<option value="">Sin historial disponible</option>';
-        return;
-      }
-      sel.innerHTML = '';
-      commits.forEach((c, i) => {
-        const d = new Date(c.commit.author.date);
-        const fecha = d.toLocaleString('es-MX', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
-        const o = document.createElement('option');
-        o.value = i === 0 ? '' : c.sha;
-        o.dataset.fecha = fecha;
-        o.textContent = (i === 0 ? 'Actual · ' : '') + fecha;
-        sel.appendChild(o);
-      });
-    })
-    .catch(e => { sel.innerHTML = '<option value="">No se pudo cargar historial (' + e.message + ')</option>'; });
+    // Detectar owner/repo/path del Excel (asume que está en la misma carpeta que este HTML)
+    const owner = location.hostname.split('.')[0];
+    const dirPath = location.pathname.endsWith('/')
+      ? location.pathname
+      : location.pathname.replace(/[^/]*$/, '');
+    const dirParts = dirPath.split('/').filter(Boolean);
+    const repo = dirParts.shift();
+    const baseDir = dirParts.join('/');
+    const excelName = window._EX || 'vencimientosdeots.xlsx';
+    const excelPath = baseDir ? baseDir + '/' + excelName : excelName;
 
-  // Al cambiar, descargar ese Excel y reprocesarlo en el mismo dashboard
-  sel.addEventListener('change', () => {
-    const sha = sel.value;
-    const opt = sel.options[sel.selectedIndex];
-    const fechaLabel = opt ? opt.dataset.fecha : '';
-    const originalText = opt ? opt.textContent : '';
-    sel.disabled = true;
-    if (opt) opt.textContent = 'Cargando…';
+    const sel = document.getElementById('vs-sel');
+    const tag = document.getElementById('vs-tag');
 
-    const url = sha
-      ? `https://raw.githubusercontent.com/${owner}/${repo}/${sha}/${excelPath}`
-      : excelName + '?v=' + Date.now();
-
-    fetch(url, sha ? {} : { cache: 'no-store' })
-      .then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
-      .then(buf => {
-        // Resetear filtros para evitar valores que ya no existan en el snapshot
-        if (window._S && window._FF) {
-          window._FF.forEach(f => window._S.filters[f] = []);
+    // Listar commits del Excel
+    fetch(`https://api.github.com/repos/${owner}/${repo}/commits?path=${encodeURIComponent(excelPath)}&per_page=50`)
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(commits => {
+        if (!Array.isArray(commits) || commits.length === 0) {
+          sel.innerHTML = '<option value="">Sin historial</option>';
+          return;
         }
-        // Reprocesar el dashboard con los nuevos datos
-        window.procesarExcel(buf);
-
-        if (sha) {
-          tag.textContent = 'Snapshot ' + fechaLabel;
-          tag.style.display = 'inline';
-        } else {
-          tag.style.display = 'none';
-        }
+        sel.innerHTML = '';
+        commits.forEach((c, i) => {
+          const d = new Date(c.commit.author.date);
+          const fecha = d.toLocaleString('es-MX', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+          const o = document.createElement('option');
+          o.value = i === 0 ? '' : c.sha;
+          o.dataset.fecha = fecha;
+          o.textContent = (i === 0 ? 'Actual · ' : '') + fecha;
+          sel.appendChild(o);
+        });
       })
-      .catch(e => alert('No se pudo cargar esa versión del Excel: ' + e.message))
-      .finally(() => {
-        if (opt) opt.textContent = originalText;
-        sel.disabled = false;
-      });
-  });
+      .catch(e => { sel.innerHTML = '<option value="">Sin historial (' + e.message + ')</option>'; });
+
+    // Al cambiar, descargar ese Excel y reprocesarlo en el mismo dashboard
+    sel.addEventListener('change', () => {
+      const sha = sel.value;
+      const opt = sel.options[sel.selectedIndex];
+      const fechaLabel = opt ? opt.dataset.fecha : '';
+      const originalText = opt ? opt.textContent : '';
+      sel.disabled = true;
+      if (opt) opt.textContent = 'Cargando…';
+
+      const url = sha
+        ? `https://raw.githubusercontent.com/${owner}/${repo}/${sha}/${excelPath}`
+        : excelName + '?v=' + Date.now();
+
+      fetch(url, sha ? {} : { cache: 'no-store' })
+        .then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+        .then(buf => {
+          if (window._S && window._FF) {
+            window._FF.forEach(f => window._S.filters[f] = []);
+          }
+          window.procesarExcel(buf);
+          if (sha) { tag.textContent = 'Snapshot ' + fechaLabel; tag.style.display = 'inline-flex'; }
+          else { tag.style.display = 'none'; }
+        })
+        .catch(e => alert('No se pudo cargar esa versión del Excel: ' + e.message))
+        .finally(() => {
+          if (opt) opt.textContent = originalText;
+          sel.disabled = false;
+        });
+    });
+  }
 })();
 </script>
 <!-- ===== Fin selector de snapshots ===== -->
